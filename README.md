@@ -29,3 +29,8 @@ Install the `.spl` via Splunk Web (Apps → Install app from file). After a viz-
 update, bump Splunk's static-asset cache (`/en-US/_bump`) or restart, then hard-refresh.
 
 Framework: `@splunk/dashboard-studio-extension`. Passes Splunk Cloud AppInspect (cloud tags).
+
+## Related repositories
+
+- **[oura-health-splunk](https://github.com/narwhaldc/oura-health-splunk)** — the Splunk app + ingest pipeline this viz was built for
+- **[charge_ring_viz](https://github.com/narwhaldc/charge_ring_viz)** — companion battery / charge-status ring viz
