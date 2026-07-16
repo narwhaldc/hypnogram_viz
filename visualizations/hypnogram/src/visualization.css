@@ -1,0 +1,75 @@
+/* Make the sandboxed iframe fully transparent so the dashboard's
+   background SVG shows through; the translucent panel fill is painted
+   inside the canvas (see backgroundFill option). */
+html,
+body,
+#root {
+    background: transparent !important;
+    margin: 0;
+    padding: 0;
+}
+
+.viz-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: transparent;
+}
+
+.hyp-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.hyp-message {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #8a93a0;
+    font-size: 13px;
+}
+
+.hyp-tooltip {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+    min-width: 96px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.35;
+    background: #23262e;
+    color: #e9edf2;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+}
+
+.hyp-tip-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.hyp-tip-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 6px;
+}
+
+.hyp-tip-row {
+    color: #b7c0cb;
+}
+
+.hyp-tip-dur {
+    opacity: 0.85;
+}

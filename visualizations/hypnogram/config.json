@@ -1,0 +1,29 @@
+{
+  "showTitleAndDescription": true,
+  "includeInToolbar": true,
+  "includeInVizSwitcher": true,
+  "showDrilldown": false,
+  "canSetTokens": [],
+  "hasEventHandlers": false,
+  "config": {
+    "name": "Hypnogram",
+    "description": "Sleep stage hypnogram — stepped stage timeline (Awake / REM / Light / Deep)",
+    "category": "Custom",
+    "icon": null,
+    "dataContract": {
+      "requiredDataSources": ["primary"],
+      "optionalDataSources": []
+    },
+    "size": {
+      "initialWidth": 900,
+      "initialHeight": 260
+    },
+    "optionsSchema": {
+      "backgroundFill": { "type": "string" },
+      "contentOpacity": { "type": "number", "default": 0.85 },
+      "slotMinutes": { "type": "number", "default": 5 },
+      "lanes": { "type": "string" }
+    },
+    "editorConfig": []
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+stage/
+.DS_Store
+*.bak
+*.log
+.env
+.env.local
+.claude/
