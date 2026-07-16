@@ -34,3 +34,7 @@ Framework: `@splunk/dashboard-studio-extension`. Passes Splunk Cloud AppInspect 
 
 - **[oura-health-splunk](https://github.com/narwhaldc/oura-health-splunk)** — the Splunk app + ingest pipeline this viz was built for
 - **[charge_ring_viz](https://github.com/narwhaldc/charge_ring_viz)** — companion battery / charge-status ring viz
+
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE). Copyright 2026 Tony Vincent.
