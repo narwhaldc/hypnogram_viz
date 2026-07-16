@@ -211,6 +211,7 @@ function generateAppManifest(appInfo) {
             },
             author: [{ name: appInfo.author ?? '' }],
             description: appInfo.description ?? '',
+            license: { name: 'Apache-2.0', text: 'LICENSE' },
         },
         supportedDeployments: ['_standalone', '_distributed', '_search_head_clustering'],
         targetWorkloads: ['_search_heads'],
@@ -382,6 +383,12 @@ async function main({ cwd }) {
 
     console.log(colors.info('Generating app manifest...'));
     writeFileSync(join(stageAppDir, 'app.manifest'), JSON.stringify(generateAppManifest(appInfoParsed), null, 2));
+
+    const licensePath = join(projectRoot, 'LICENSE');
+    if (existsSync(licensePath)) {
+        copyFileSync(licensePath, join(stageAppDir, 'LICENSE'));
+        console.log(colors.dim('  ✓ Included LICENSE'));
+    }
 
     const splatFilename = `${appId}-${appVersion}-${shortHash}.spl`;
     const outputPath = await createSplArchive(stageDir, appId, distDir, splatFilename);
