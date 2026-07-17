@@ -79,6 +79,34 @@ const THEME = {
     dark: { text: '#c3cbd4', muted: '#8a93a0', grid: 'rgba(195,203,212,0.14)', tipBg: '#23262e', tipText: '#e9edf2', tipBorder: 'rgba(255,255,255,0.14)' },
 };
 
+// Keep lane LABEL text color-coded but legible: lane blocks always use the
+// true lane color, while a too-dark label (dark theme) or too-light label
+// (light theme) is blended toward white/black to meet a luminance floor.
+function hexToRgb(hex) {
+    const h = String(hex || '').replace('#', '');
+    const n = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+    if (!/^[0-9a-fA-F]{6}$/.test(n)) return null;
+    const v = parseInt(n, 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('');
+}
+function legibleLabelColor(color, theme) {
+    const rgb = hexToRgb(color);
+    if (!rgb) return color;
+    let [r, g, b] = rgb;
+    const L = (0.299 * r + 0.587 * g + 0.114 * b) / 255; // perceived luminance 0..1
+    if (theme === 'light') {
+        const floor = 0.5;
+        if (L > floor) { const t = Math.min(1, (L - floor) / (1 - floor)); r *= (1 - t); g *= (1 - t); b *= (1 - t); }
+    } else {
+        const floor = 0.6;
+        if (L < floor) { const t = Math.min(1, (floor - L) / floor); r += (255 - r) * t; g += (255 - g) * t; b += (255 - b) * t; }
+    }
+    return rgbToHex(r, g, b);
+}
+
 const rootElement = document.getElementById('root') || document.body;
 const container = document.createElement('div');
 container.className = 'viz-container';
@@ -341,7 +369,7 @@ function render() {
         ctx.lineTo(padL + plotW, Math.round(cy) + 0.5);
         ctx.stroke();
 
-        ctx.fillStyle = s.color;
+        ctx.fillStyle = legibleLabelColor(s.color, state.theme);
         ctx.textAlign = 'left';
         ctx.fillText(s.label, 10, cy);
     });
