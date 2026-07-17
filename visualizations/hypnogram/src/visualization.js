@@ -19,9 +19,12 @@ const DEFAULT_LANES = [
 const DEFAULT_SLOT_MIN = 5; // minutes represented by each data row
 const DEFAULT_LABELS = new Set(DEFAULT_LANES.map((l) => l.label));
 // Palette for auto-derived lanes (used when no explicit `lanes` option arrives).
+// First 6 entries are the canonical HR-zone order (auto-derive sorts labels
+// desc, so index 0 = Z5 Max ... index 5 = Z0 Recovery). Keep in sync with the
+// zone band + Active-Time-in-Zone chart on the Activity dashboard.
 const AUTO_PALETTE = [
-    '#E8503A', '#E8843A', '#F4A422', '#4263B8', '#00CDAF',
-    '#4CAF50', '#009CEB', '#7B56DB', '#A78BFA', '#6B7280',
+    '#E8503A', '#E8843A', '#F4A422', '#4263B8', '#4CAF50',
+    '#6B7280', '#009CEB', '#7B56DB', '#A78BFA', '#6B7280',
 ];
 
 // `lanes` may arrive as an array of {label,color} OR a JSON string of the same
