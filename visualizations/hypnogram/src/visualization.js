@@ -9,22 +9,15 @@ import './visualization.css';
  * The `stage` value must match a lane `label`.
  * ------------------------------------------------------------------ */
 
-// Default lanes (top -> bottom) — sleep stages, using the Oura dashboard palette.
-const DEFAULT_LANES = [
-    { label: 'Awake', color: '#DD9900' },
-    { label: 'REM', color: '#009CEB' },
-    { label: 'Light', color: '#00CDAF' },
-    { label: 'Deep', color: '#7B56DB' },
-];
 const DEFAULT_SLOT_MIN = 5; // minutes represented by each data row
-const DEFAULT_LABELS = new Set(DEFAULT_LANES.map((l) => l.label));
-// Palette for auto-derived lanes (used when no explicit `lanes` option arrives).
-// First 6 entries are the canonical HR-zone order (auto-derive sorts labels
-// desc, so index 0 = Z5 Max ... index 5 = Z0 Recovery). Keep in sync with the
-// zone band + Active-Time-in-Zone chart on the Activity dashboard.
+// Fallback palette for auto-derived lanes when no explicit `lanes` option is
+// provided. Lanes are the data's distinct `stage` values sorted desc, so for
+// HR zones index 0 = Z5 Max ... index 5 = Z0 Recovery. Dashboards SHOULD pass
+// an explicit `lanes` option (label-keyed, stable); this is only a graceful
+// fallback so the viz always renders something.
 const AUTO_PALETTE = [
-    '#E8503A', '#E8843A', '#F4A422', '#4263B8', '#4CAF50',
-    '#6B7280', '#009CEB', '#7B56DB', '#A78BFA', '#6B7280',
+    '#E8503A', '#E8843A', '#F4A422', '#4263B8', '#00CDAF',
+    '#4CAF50', '#009CEB', '#7B56DB', '#A78BFA', '#6B7280',
 ];
 
 // `lanes` may arrive as an array of {label,color} OR a JSON string of the same
@@ -56,9 +49,8 @@ function distinctStages(data) {
 }
 
 // Build ordered lanes (top->bottom) + lookup maps. Priority:
-//   1) explicit `lanes` option (array or JSON string)
-//   2) auto-derive from data stages when they aren't the sleep defaults
-//   3) sleep-stage defaults
+//   1) explicit `lanes` option (array or JSON string) — the intended path
+//   2) auto-derive from the data's distinct `stage` values (highest on top)
 function resolveLanes(options, dataStages) {
     const parsed = parseLanes(options && options.lanes);
     let list;
@@ -66,14 +58,12 @@ function resolveLanes(options, dataStages) {
         list = parsed
             .filter((x) => x && x.label != null)
             .map((x) => ({ label: String(x.label), color: x.color || '#8a93a0' }));
-    } else if (dataStages && dataStages.some((s) => !DEFAULT_LABELS.has(s))) {
-        // Unknown categories (e.g. HR zones) — derive lanes, highest label on top.
-        list = [...new Set(dataStages)]
+    } else {
+        // No explicit lanes — derive from data stages, highest label on top.
+        list = [...new Set(dataStages || [])]
             .sort()
             .reverse()
             .map((s, i) => ({ label: s, color: AUTO_PALETTE[i % AUTO_PALETTE.length] }));
-    } else {
-        list = DEFAULT_LANES;
     }
     const laneOf = {};
     const colorOf = {};
@@ -127,7 +117,7 @@ const state = {
     width: 0,
     height: 0,
     theme: 'dark',
-    lanes: DEFAULT_LANES,
+    lanes: [],
     laneOf: {},
     colorOf: {},
     slotMin: DEFAULT_SLOT_MIN,

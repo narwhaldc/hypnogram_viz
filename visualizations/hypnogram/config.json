@@ -7,7 +7,7 @@
   "hasEventHandlers": false,
   "config": {
     "name": "Hypnogram",
-    "description": "Sleep stage hypnogram — stepped stage timeline (Awake / REM / Light / Deep)",
+    "description": "Generic stepped lane-timeline (category-over-time). Define lanes + colors via the `lanes` option — e.g. sleep stages or HR training zones.",
     "category": "Custom",
     "icon": null,
     "dataContract": {
