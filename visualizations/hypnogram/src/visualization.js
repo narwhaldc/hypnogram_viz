@@ -273,7 +273,7 @@ function buildTicks(rows, first) {
     if (span <= 1440) {
         for (const r of rows) {
             const t = parseHM(r.label);
-            if (t && t.m === 0) ticks.push({ min: r.offset - first, label: r.label, major: false });
+            if (t && t.m === 0) ticks.push({ min: r.offset - first, label: r.label, date: r.date, major: false });
         }
         return ticks;
     }
@@ -439,6 +439,8 @@ function render() {
     const axisY = padT + plotH + 6;
     const ticks = visibleTicks(viewStart, viewEnd);
     let lastX = -Infinity;
+    let lastDate = null;
+    let firstTick = true;
     for (const t of ticks) {
         const x = xOf(t.min);
         if (x < padL - 0.5 || x > padL + plotW + 0.5) continue; // outside window
@@ -453,6 +455,19 @@ function render() {
         ctx.fillStyle = t.major ? c.text : c.muted;
         ctx.font = (t.major ? '600 ' : '') + '11px -apple-system, "Segoe UI", Roboto, sans-serif';
         ctx.fillText(t.label, x, axisY);
+        // Single-day tick date line: stamp the date under the first drawn tick
+        // and whenever it changes (a midnight crossing), so a one-night timeline
+        // says which night it is. Multi-day ticks carry the date in `label`
+        // already (t.date is unset there), so this stays a no-op for them.
+        if (t.date) {
+            if (firstTick || t.date !== lastDate) {
+                ctx.fillStyle = c.muted;
+                ctx.font = '600 10px -apple-system, "Segoe UI", Roboto, sans-serif';
+                ctx.fillText(t.date, x, axisY + 12);
+            }
+            lastDate = t.date;
+        }
+        firstTick = false;
     }
 
     // Live brush selection rectangle while dragging.
