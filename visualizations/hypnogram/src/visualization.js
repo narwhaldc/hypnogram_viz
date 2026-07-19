@@ -153,6 +153,16 @@ const state = {
     totalMin: 0,
     ticks: [], // { min, label, major }
     hitRects: [], // { x, y, w, h, seg }
+    // Brush-to-zoom (client-side visual zoom; no re-query). `view` is the
+    // visible window in normalized minutes (null = full range). `geom` caches
+    // the plot rect so the mouse handlers can map pixels <-> minutes.
+    view: null,
+    geom: null,
+    mode: 'view',
+    mouseDown: false,
+    dragging: false,
+    dragStartX: 0,
+    dragCurX: 0,
 };
 
 /* ---------------------------- data prep ---------------------------- */
@@ -356,7 +366,13 @@ function render() {
     const laneCenter = (i) => padT + (i + 0.5) * laneH;
     const blockH = Math.min(laneH * 0.5, 24);
     const totalMin = state.totalMin || 1;
-    const xOf = (min) => padL + (min / totalMin) * plotW;
+    // Visible window (client-side zoom). Default = full range.
+    const viewStart = state.view ? Math.max(0, state.view.startMin) : 0;
+    const viewEnd = state.view ? Math.min(totalMin, state.view.endMin) : totalMin;
+    const span = Math.max(1e-6, viewEnd - viewStart);
+    const xOf = (min) => padL + ((min - viewStart) / span) * plotW;
+    // Cache geometry for the brush/zoom mouse handlers (CSS-px space).
+    state.geom = { padL, plotW, padT, plotH, viewStart, viewEnd, span };
 
     // Lane guides + labels
     ctx.textBaseline = 'middle';
@@ -381,8 +397,9 @@ function render() {
 
     // Risers first (so blocks sit on top), colored by the destination stage.
     for (let i = 1; i < state.segments.length; i++) {
-        const prev = state.segments[i - 1];
         const cur = state.segments[i];
+        if (cur.startMin <= viewStart || cur.startMin >= viewEnd) continue; // outside zoom
+        const prev = state.segments[i - 1];
         const x = xOf(cur.startMin);
         const y1 = laneCenter(state.laneOf[prev.stage]);
         const y2 = laneCenter(state.laneOf[cur.stage]);
@@ -394,11 +411,14 @@ function render() {
         ctx.stroke();
     }
 
-    // Blocks
+    // Blocks (clipped to the visible zoom window)
     state.hitRects = [];
     for (const s of state.segments) {
-        const x = xOf(s.startMin);
-        const wd = Math.max(1.5, xOf(s.endMin) - x);
+        const s0 = Math.max(s.startMin, viewStart);
+        const s1 = Math.min(s.endMin, viewEnd);
+        if (s1 <= s0) continue; // fully outside the window
+        const x = xOf(s0);
+        const wd = Math.max(1.5, xOf(s1) - x);
         const cy = laneCenter(state.laneOf[s.stage]);
         const y = cy - blockH / 2;
         ctx.fillStyle = state.colorOf[s.stage];
@@ -416,10 +436,11 @@ function render() {
     ctx.textBaseline = 'top';
     ctx.textAlign = 'center';
     const axisY = padT + plotH + 6;
-    const ticks = axisTicks();
+    const ticks = visibleTicks(viewStart, viewEnd);
     let lastX = -Infinity;
     for (const t of ticks) {
         const x = xOf(t.min);
+        if (x < padL - 0.5 || x > padL + plotW + 0.5) continue; // outside window
         if (x - lastX < 34) continue; // avoid crowding
         lastX = x;
         ctx.strokeStyle = c.grid;
@@ -432,16 +453,41 @@ function render() {
         ctx.font = (t.major ? '600 ' : '') + '11px -apple-system, "Segoe UI", Roboto, sans-serif';
         ctx.fillText(t.label, x, axisY);
     }
+
+    // Live brush selection rectangle while dragging.
+    if (state.dragging) {
+        const bx1 = Math.min(state.dragStartX, state.dragCurX);
+        const bx2 = Math.max(state.dragStartX, state.dragCurX);
+        ctx.fillStyle = 'rgba(120,160,220,0.18)';
+        ctx.fillRect(bx1, padT, bx2 - bx1, plotH);
+        ctx.strokeStyle = 'rgba(120,160,220,0.65)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx1 + 0.5, padT); ctx.lineTo(bx1 + 0.5, padT + plotH);
+        ctx.moveTo(bx2 - 0.5, padT); ctx.lineTo(bx2 - 0.5, padT + plotH);
+        ctx.stroke();
+    }
+
+    // When zoomed, show how to get back out.
+    if (state.view && !state.dragging) {
+        ctx.fillStyle = c.muted;
+        ctx.font = '10px -apple-system, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText('double-click to reset zoom', w - padR, 1);
+    }
 }
 
-// Use computed ticks; if fewer than 2, fall back to start/end labels.
-function axisTicks() {
-    if (state.ticks.length >= 2) return state.ticks;
-    const segs = state.segments;
-    if (!segs.length) return [];
+// Ticks within the visible window. If a narrow zoom leaves fewer than 2,
+// synthesize edge labels from the base clock time (segment[0] starts at
+// normalized minute 0, so any minute m -> base + m).
+function visibleTicks(viewStart, viewEnd) {
+    const within = state.ticks.filter((t) => t.min >= viewStart - 1e-6 && t.min <= viewEnd + 1e-6);
+    if (within.length >= 2) return within;
+    const base = (state.segments[0] && state.segments[0].startLabel) || '';
     return [
-        { min: 0, label: segs[0].startLabel, major: false },
-        { min: state.totalMin, label: segs[segs.length - 1].endLabel, major: false },
+        { min: viewStart, label: addMinutes(base, Math.round(viewStart)), major: false },
+        { min: viewEnd, label: addMinutes(base, Math.round(viewEnd)), major: false },
     ];
 }
 
@@ -476,14 +522,68 @@ function hitTest(cx, cy) {
     return null;
 }
 
-canvas.addEventListener('mousemove', (e) => {
+/* ------------------------- brush-to-zoom -------------------------- *
+ * Drag horizontally across the plot to zoom into that time window
+ * (client-side visual zoom — no re-query; source granularity is fixed).
+ * Double-click resets. Disabled in DS edit mode so it doesn't fight the
+ * panel editor. A press that doesn't move past DRAG_THRESHOLD is treated
+ * as a hover, not a zoom.
+ * ----------------------------------------------------------------- */
+const DRAG_THRESHOLD = 4; // px of movement before a press becomes a zoom-drag
+
+function clampX(x) {
+    const g = state.geom;
+    if (!g) return x;
+    return Math.max(g.padL, Math.min(g.padL + g.plotW, x));
+}
+function inPlot(x, y) {
+    const g = state.geom;
+    if (!g) return false;
+    return x >= g.padL && x <= g.padL + g.plotW && y >= g.padT && y <= g.padT + g.plotH;
+}
+function minAtX(x) {
+    const g = state.geom;
+    if (!g) return 0;
+    return g.viewStart + ((clampX(x) - g.padL) / g.plotW) * g.span;
+}
+function evtXY(e) {
     const rect = canvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
+    return [e.clientX - rect.left, e.clientY - rect.top];
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (state.mode === 'edit') return;
+    const [cx, cy] = evtXY(e);
+    if (!inPlot(cx, cy)) return;
+    state.mouseDown = true;
+    state.dragging = false;
+    state.dragStartX = clampX(cx);
+    state.dragCurX = clampX(cx);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    const [cx, cy] = evtXY(e);
+
+    // Dragging a zoom selection takes over from hover.
+    if (state.mouseDown) {
+        if (!state.dragging && Math.abs(cx - state.dragStartX) > DRAG_THRESHOLD) {
+            state.dragging = true;
+            tooltip.style.display = 'none';
+        }
+        if (state.dragging) {
+            state.dragCurX = clampX(cx);
+            canvas.style.cursor = 'ew-resize';
+            render();
+            return;
+        }
+    }
+
+    // Hover tooltip.
     const hit = hitTest(cx, cy);
     if (!hit) {
         tooltip.style.display = 'none';
-        canvas.style.cursor = 'default';
+        // crosshair over the plot signals "drag here to zoom"
+        canvas.style.cursor = inPlot(cx, cy) && state.mode !== 'edit' ? 'crosshair' : 'default';
         return;
     }
     const s = hit.seg;
@@ -504,9 +604,31 @@ canvas.addEventListener('mousemove', (e) => {
     tooltip.style.top = top + 'px';
 });
 
+canvas.addEventListener('mouseup', () => {
+    if (!state.mouseDown) return;
+    const wasDragging = state.dragging;
+    state.mouseDown = false;
+    state.dragging = false;
+    if (!wasDragging) return; // plain click — not a zoom
+    const lo = Math.min(minAtX(state.dragStartX), minAtX(state.dragCurX));
+    const hi = Math.max(minAtX(state.dragStartX), minAtX(state.dragCurX));
+    if (hi - lo < state.slotMin) { render(); return; } // window too small — ignore
+    state.view = { startMin: lo, endMin: hi };
+    render();
+});
+
 canvas.addEventListener('mouseleave', () => {
+    // Cancel an in-progress drag (release happened off-canvas).
+    const wasDragging = state.dragging;
+    state.mouseDown = false;
+    state.dragging = false;
     tooltip.style.display = 'none';
     canvas.style.cursor = 'default';
+    if (wasDragging) render();
+});
+
+canvas.addEventListener('dblclick', () => {
+    if (state.view) { state.view = null; render(); }
 });
 
 /* ----------------------------- listeners -------------------------- */
@@ -522,6 +644,7 @@ VisualizationAPI.addOptionsListener(
     ({ options }) => {
         state.options = options || {};
         state.segments = []; // lanes/slotMinutes can change the model — force rebuild
+        state.view = null; // lane/slot change invalidates any zoom window
         render();
     },
     { invokeImmediately: true }
@@ -532,6 +655,7 @@ VisualizationAPI.addDataSourcesListener(
         state.loading = loading;
         state.data = dataSources?.primary?.data || null;
         state.segments = []; // force rebuild
+        state.view = null; // new time range invalidates any zoom window
         render();
     },
     { invokeImmediately: true }
@@ -550,6 +674,14 @@ VisualizationAPI.addThemeListener(
     ({ theme }) => {
         state.theme = theme;
         render();
+    },
+    { invokeImmediately: true }
+);
+
+// Track edit vs view mode so the brush-zoom doesn't fight the panel editor.
+VisualizationAPI.addModeListener(
+    ({ mode }) => {
+        state.mode = mode;
     },
     { invokeImmediately: true }
 );
