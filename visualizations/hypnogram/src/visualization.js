@@ -158,6 +158,7 @@ const state = {
     // the plot rect so the mouse handlers can map pixels <-> minutes.
     view: null,
     geom: null,
+    resetBtn: null, // { x, y, w, h } of the on-canvas reset button when zoomed
     mode: 'view',
     mouseDown: false,
     dragging: false,
@@ -468,13 +469,28 @@ function render() {
         ctx.stroke();
     }
 
-    // When zoomed, show how to get back out.
+    // On-canvas "Reset zoom" button (only when zoomed). Rendered inside the viz
+    // because a custom viz can't add controls to the DS panel header chrome.
+    // Its bounds are cached in state.resetBtn for click hit-testing.
+    state.resetBtn = null;
     if (state.view && !state.dragging) {
-        ctx.fillStyle = c.muted;
-        ctx.font = '10px -apple-system, "Segoe UI", Roboto, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-        ctx.fillText('double-click to reset zoom', w - padR, 1);
+        const label = '↺ Reset zoom';
+        ctx.font = '600 11px -apple-system, "Segoe UI", Roboto, sans-serif';
+        const bw = Math.ceil(ctx.measureText(label).width) + 16;
+        const bh = 18;
+        const bx = w - padR - bw;
+        const by = 1;
+        ctx.fillStyle = 'rgba(120,160,220,0.18)';
+        ctx.strokeStyle = 'rgba(120,160,220,0.65)';
+        ctx.lineWidth = 1;
+        roundRectPath(ctx, bx, by, bw, bh, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = c.text;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, bx + bw / 2, by + bh / 2 + 0.5);
+        state.resetBtn = { x: bx, y: by, w: bw, h: bh };
     }
 }
 
@@ -541,6 +557,10 @@ function inPlot(x, y) {
     if (!g) return false;
     return x >= g.padL && x <= g.padL + g.plotW && y >= g.padT && y <= g.padT + g.plotH;
 }
+function inButton(x, y) {
+    const b = state.resetBtn;
+    return !!b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+}
 function minAtX(x) {
     const g = state.geom;
     if (!g) return 0;
@@ -554,6 +574,7 @@ function evtXY(e) {
 canvas.addEventListener('mousedown', (e) => {
     if (state.mode === 'edit') return;
     const [cx, cy] = evtXY(e);
+    if (inButton(cx, cy)) { state.view = null; render(); return; } // reset zoom
     if (!inPlot(cx, cy)) return;
     state.mouseDown = true;
     state.dragging = false;
@@ -576,6 +597,13 @@ canvas.addEventListener('mousemove', (e) => {
             render();
             return;
         }
+    }
+
+    // Reset button hover — pointer cursor, no tooltip.
+    if (inButton(cx, cy)) {
+        tooltip.style.display = 'none';
+        canvas.style.cursor = 'pointer';
+        return;
     }
 
     // Hover tooltip.
