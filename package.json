@@ -1,6 +1,6 @@
 {
   "name": "hypnogram_viz",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "A custom visualization for Splunk Dashboard Studio",
   "author": "Tony Vincent",
   "type": "module",

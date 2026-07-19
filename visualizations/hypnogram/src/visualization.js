@@ -474,9 +474,16 @@ function render() {
     // Its bounds are cached in state.resetBtn for click hit-testing.
     state.resetBtn = null;
     if (state.view && !state.dragging) {
-        const label = '↺ Reset zoom';
+        // Match the native Dashboard Studio "⊖ Reset Zoom" control: a
+        // circled-minus icon (drawn, not a glyph, so it renders identically
+        // everywhere) + the same "Reset Zoom" label.
+        const label = 'Reset Zoom';
         ctx.font = '600 11px -apple-system, "Segoe UI", Roboto, sans-serif';
-        const bw = Math.ceil(ctx.measureText(label).width) + 16;
+        const textW = ctx.measureText(label).width;
+        const iconR = 5;
+        const padX = 9;
+        const gap = 6;
+        const bw = Math.ceil(padX + iconR * 2 + gap + textW + padX);
         const bh = 18;
         const bx = w - padR - bw;
         const by = 1;
@@ -486,10 +493,23 @@ function render() {
         roundRectPath(ctx, bx, by, bw, bh, 4);
         ctx.fill();
         ctx.stroke();
+        // circled-minus icon
+        const icx = bx + padX + iconR;
+        const icy = by + bh / 2;
+        ctx.strokeStyle = c.text;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(icx, icy, iconR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(icx - iconR * 0.55, icy);
+        ctx.lineTo(icx + iconR * 0.55, icy);
+        ctx.stroke();
+        // label
         ctx.fillStyle = c.text;
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, bx + bw / 2, by + bh / 2 + 0.5);
+        ctx.fillText(label, bx + padX + iconR * 2 + gap, icy + 0.5);
         state.resetBtn = { x: bx, y: by, w: bw, h: bh };
     }
 }
