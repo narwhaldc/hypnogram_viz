@@ -159,6 +159,8 @@ const state = {
     view: null,
     geom: null,
     resetBtn: null, // { x, y, w, h } of the on-canvas reset button when zoomed
+    startDate: '', // date_label of the first/last row — used to date synthesized
+    endDate: '',   // axis edge ticks when no on-the-hour tick exists (see below)
     mode: 'view',
     mouseDown: false,
     dragging: false,
@@ -254,6 +256,8 @@ function buildModel() {
         s.endMin -= first;
     });
     state.totalMin = state.segments.length ? state.segments[state.segments.length - 1].endMin : 0;
+    state.startDate = rows.length ? rows[0].date : '';
+    state.endDate = rows.length ? rows[rows.length - 1].date : '';
     state.ticks = buildTicks(rows, first);
 }
 
@@ -535,10 +539,14 @@ function render() {
 function visibleTicks(viewStart, viewEnd) {
     const within = state.ticks.filter((t) => t.min >= viewStart - 1e-6 && t.min <= viewEnd + 1e-6);
     if (within.length >= 2) return within;
+    // Carry the date onto the synthesized edge ticks too — a night whose 5-min
+    // rows never land on :00 (e.g. bedtime 01:52 → offsets :52/:57/:02/…) yields
+    // NO on-the-hour ticks, so the axis is just these two edges; without a date
+    // here the date line would never render.
     const base = (state.segments[0] && state.segments[0].startLabel) || '';
     return [
-        { min: viewStart, label: addMinutes(base, Math.round(viewStart)), major: false },
-        { min: viewEnd, label: addMinutes(base, Math.round(viewEnd)), major: false },
+        { min: viewStart, label: addMinutes(base, Math.round(viewStart)), date: state.startDate, major: false },
+        { min: viewEnd, label: addMinutes(base, Math.round(viewEnd)), date: state.endDate, major: false },
     ];
 }
 
