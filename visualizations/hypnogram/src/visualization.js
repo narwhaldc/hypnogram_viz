@@ -511,6 +511,22 @@ canvas.addEventListener('mouseleave', () => {
 
 /* ----------------------------- listeners -------------------------- */
 
+// Options MUST be registered first and invoked immediately: render() resolves
+// lanes/colors from state.options every pass, and the data/dimensions/theme
+// listeners below also fire immediately. If options weren't populated first,
+// an early data-driven render would resolve lanes from the AUTO_PALETTE
+// fallback (wrong colors + data-derived order) — a race that surfaced as
+// "correct on first load, wrong after a refresh" (warm cache reorders the
+// callbacks). invokeImmediately guarantees state.options is set before any draw.
+VisualizationAPI.addOptionsListener(
+    ({ options }) => {
+        state.options = options || {};
+        state.segments = []; // lanes/slotMinutes can change the model — force rebuild
+        render();
+    },
+    { invokeImmediately: true }
+);
+
 VisualizationAPI.addDataSourcesListener(
     ({ dataSources, loading }) => {
         state.loading = loading;
@@ -520,12 +536,6 @@ VisualizationAPI.addDataSourcesListener(
     },
     { invokeImmediately: true }
 );
-
-VisualizationAPI.addOptionsListener(({ options }) => {
-    state.options = options || {};
-    state.segments = []; // lanes/slotMinutes can change the model — force rebuild
-    render();
-});
 
 VisualizationAPI.addDimensionsListener(
     ({ width, height }) => {
