@@ -512,18 +512,24 @@ function render() {
         roundRectPath(ctx, bx, by, bw, bh, 4);
         ctx.fill();
         ctx.stroke();
-        // circled-minus icon
+        // circled-minus icon — FILLED disc with the minus knocked out (matches
+        // the native DS "⊖ Reset Zoom" control). destination-out erases the
+        // minus from the disc, so it works in any theme regardless of pill fill.
         const icx = bx + padX + iconR;
         const icy = by + bh / 2;
-        ctx.strokeStyle = c.text;
-        ctx.lineWidth = 1.4;
+        ctx.fillStyle = c.text;
         ctx.beginPath();
         ctx.arc(icx, icy, iconR, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.fill();
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 1.6;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(icx - iconR * 0.55, icy);
-        ctx.lineTo(icx + iconR * 0.55, icy);
+        ctx.moveTo(icx - iconR * 0.5, icy);
+        ctx.lineTo(icx + iconR * 0.5, icy);
         ctx.stroke();
+        ctx.restore();
         // label
         ctx.fillStyle = c.text;
         ctx.textAlign = 'left';
