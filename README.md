@@ -5,6 +5,8 @@ lanes with filled blocks and vertical risers at transitions. Built for the compa
 **oura_health** Sleep & Activity dashboards (sleep stages, HR zones), but generic:
 configurable lanes make it work for any staged/zoned timeline.
 
+**GA release set:** oura_health 2.0.1 · **hypnogram_viz 1.0.1** · charge_ring_viz 1.0.0 (all AppInspect Cloud-clean). Grab the `.spl` from this repo's [latest release](https://github.com/narwhaldc/hypnogram_viz/releases/latest); a full Splunk restart makes the viz JS render.
+
 **Viz type string:** `hypnogram_viz.hypnogram`
 
 ## Options (set on the panel; `optionsSchema`-declared so they forward)
